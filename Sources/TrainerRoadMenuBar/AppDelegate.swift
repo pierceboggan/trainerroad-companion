@@ -58,12 +58,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task {
             do {
                 let entries = try await service.fetchTSSData()
+                let fetchedAt = Date()
+                service.saveCachedData(entries: entries, savedAt: fetchedAt)
                 await MainActor.run {
                     allEntries = entries
-                    buildMenu(from: entries)
+                    buildMenu(from: entries, dataTimestamp: fetchedAt)
                 }
             } catch {
-                await MainActor.run { buildErrorMenu(error) }
+                let cached = service.loadCachedData()
+                await MainActor.run {
+                    if let cached {
+                        allEntries = cached.entries
+                        buildMenu(from: cached.entries, dataTimestamp: cached.savedAt, isCached: true, fetchError: error)
+                    } else {
+                        buildErrorMenu(error)
+                    }
+                }
             }
         }
     }
@@ -78,10 +88,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.menu = menu
     }
 
-    private func buildMenu(from entries: [DayEntry]) {
+    private func buildMenu(from entries: [DayEntry], dataTimestamp: Date? = nil, isCached: Bool = false, fetchError: Error? = nil) {
         let menu = NSMenu()
         let cal = Calendar.current
         let today = Date()
+
+        if isCached {
+            addSectionTitle("⚠️  Offline — showing cached data", size: 12, to: menu)
+            if let fetchError {
+                addDetail("   \(fetchError.localizedDescription)", to: menu)
+            }
+            if let ts = dataTimestamp {
+                addDetail("   Cached at \(timeFormatter.string(from: ts))", to: menu)
+            }
+            menu.addItem(.separator())
+        }
 
         // ── Header (clickable → opens TR calendar) ──
         let header = NSMenuItem(title: "TrainerRoad", action: #selector(openTrainerRoadCalendar), keyEquivalent: "")
@@ -176,7 +197,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(.separator())
         addFooter(to: menu)
         statusItem.menu = menu
-        lastRefresh = Date()
+        lastRefresh = dataTimestamp ?? Date()
     }
 
     private func buildErrorMenu(_ error: Error) {

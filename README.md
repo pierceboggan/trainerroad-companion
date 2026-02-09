@@ -16,6 +16,7 @@ A lightweight macOS menu bar app that shows your TrainerRoad training data at a 
 - 🔥 **Streak** — consecutive days with completed rides
 - 🔗 **Deep links** — open TrainerRoad Calendar or Career page directly
 - 🔄 **Auto-refresh** — updates every 15 minutes
+- 💾 **Offline cache** — shows the last successful data if the API fails
 
 ## Requirements
 
@@ -56,6 +57,8 @@ https://www.trainerroad.com/app/api/tss/{username}
 - **CTL (Fitness)** — 42-day chronic training load
 - **ATL (Fatigue)** — 7-day acute training load
 - **TSB (Form)** — CTL minus ATL; positive = fresh, negative = fatigued
+
+**Offline cache** is stored locally in Application Support as `TrainerRoadMenuBar/tss-cache.json`.
 
 ## Keyboard Shortcuts
 

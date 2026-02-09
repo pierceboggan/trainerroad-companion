@@ -5,9 +5,57 @@ final class TrainerRoadService {
     private let username: String
     private let session: URLSession
 
+    // MARK: - Caching
+
+    struct CachedTSSData: Codable {
+        let username: String
+        let savedAt: Date
+        let entries: [DayEntry]
+    }
+
     init(username: String = "pierceboggan") {
         self.username = username
         self.session = URLSession.shared
+    }
+
+    private var cacheFileURL: URL? {
+        do {
+            let fm = FileManager.default
+            let appSupport = try fm.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+            let dir = appSupport.appendingPathComponent("TrainerRoadMenuBar", isDirectory: true)
+            try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+            return dir.appendingPathComponent("tss-cache.json", isDirectory: false)
+        } catch {
+            return nil
+        }
+    }
+
+    func saveCachedData(entries: [DayEntry], savedAt: Date = Date()) {
+        guard let url = cacheFileURL else { return }
+        do {
+            let payload = CachedTSSData(username: username, savedAt: savedAt, entries: entries)
+            let encoder = JSONEncoder()
+            encoder.dateEncodingStrategy = .iso8601
+            let data = try encoder.encode(payload)
+            try data.write(to: url, options: [.atomic])
+        } catch {
+            // Best-effort caching — ignore failures.
+        }
+    }
+
+    func loadCachedData() -> CachedTSSData? {
+        guard let url = cacheFileURL else { return nil }
+        do {
+            let data = try Data(contentsOf: url)
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            let payload = try decoder.decode(CachedTSSData.self, from: data)
+            // Only use cached data for the active username.
+            guard payload.username == username else { return nil }
+            return payload
+        } catch {
+            return nil
+        }
     }
 
     // MARK: - Fetch
